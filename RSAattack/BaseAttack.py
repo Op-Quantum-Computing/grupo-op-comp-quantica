@@ -18,10 +18,10 @@ class AttackResult:
 
 class RSABenchmark:
     """
-    Classe simples para:
-      - gerar algumas chaves RSA pequenas
-      - aplicar UMA função de ataque em todas as chaves
-      - medir tempo e sucesso
+    Classe para:
+    - gerar chaves RSA pequenas
+    - aplicar UMA função de ataque
+    - mostrar logs detalhados
     """
 
     def __init__(
@@ -44,7 +44,6 @@ class RSABenchmark:
     # ------------------------------
 
     def _is_probable_prime(self, n: int, k: int = 8) -> bool:
-        """Teste de primalidade Miller-Rabin (provável primo)."""
         if n < 2:
             return False
         small_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
@@ -54,7 +53,6 @@ class RSABenchmark:
             if n % p == 0:
                 return False
 
-        # escreve n-1 como 2^r * d
         d = n - 1
         r = 0
         while d % 2 == 0:
@@ -75,21 +73,19 @@ class RSABenchmark:
         return True
 
     def _generate_prime(self, bits: int) -> int:
-        """Gera um primo com aproximadamente 'bits' bits."""
         while True:
             candidate = random.getrandbits(bits)
-            candidate |= (1 << (bits - 1))  # garante bit mais significativo = 1
-            candidate |= 1                  # garante que é ímpar
+            candidate |= (1 << (bits - 1))
+            candidate |= 1
             if self._is_probable_prime(candidate):
                 return candidate
 
     def _generate_keys(self):
-        """Gera as chaves RSA para todos os tamanhos especificados."""
+        print("\n🔐 Gerando chaves RSA...\n")
         for bits in self.key_sizes_bits:
             half = bits // 2
             p = self._generate_prime(half)
             q = self._generate_prime(bits - half)
-
             n = p * q
             phi = (p - 1) * (q - 1)
 
@@ -99,43 +95,30 @@ class RSABenchmark:
 
             d = pow(e, -1, phi)
 
+            print(f" - Chave {bits:2} bits gerada: n = {n}")
+
             self.keys.append(
-                {
-                    "bits": bits,
-                    "p": p,
-                    "q": q,
-                    "n": n,
-                    "phi": phi,
-                    "e": e,
-                    "d": d,
-                }
+                {"bits": bits, "p": p, "q": q, "n": n, "phi": phi, "e": e, "d": d}
             )
 
+        print("\n✅ Todas as chaves foram geradas!\n")
+
     # ------------------------------
-    #  Rodar UMA função de ataque
+    #  Rodar ataque com logs detalhados
     # ------------------------------
 
-    def run(
-        self,
-        attack_func: Callable[..., Any],
-        **attack_kwargs,
-    ) -> List[AttackResult]:
-        """
-        Aplica attack_func em todas as chaves.
-
-        A função deve ter assinatura compatível com:
-            attack_func(n: int, e: int, **opcionais)
-
-        E deve devolver, OBRIGATORIAMENTE:
-            - uma tupla: (p, q) ou (p, q, ...extras...)
-            - ou um dict com 'p' e 'q' (e outras chaves opcionais)
-        """
+    def run(self, attack_func: Callable[..., Any], **attack_kwargs) -> List[AttackResult]:
         results: List[AttackResult] = []
 
+        print("\n🚀 Iniciando ataques...\n")
+
         for key in self.keys:
-            n = key["n"]
-            e = key["e"]
-            bits = key["bits"]
+            n, e, bits = key["n"], key["e"], key["bits"]
+
+            print(f"\n==========================================")
+            print(f"🔎 Rodando teste com chave de {bits} bits")
+            print(f"   n = {n}")
+            print(f"==========================================\n")
 
             start = time.perf_counter()
             extra: dict = {}
@@ -145,16 +128,9 @@ class RSABenchmark:
                 out = attack_func(n, e, **attack_kwargs)
             except Exception as ex:
                 elapsed = time.perf_counter() - start
+                print(f"❌ ERRO no ataque: {ex}\n")
                 results.append(
-                    AttackResult(
-                        key_bits=bits,
-                        n=n,
-                        success=False,
-                        p=None,
-                        q=None,
-                        elapsed_seconds=elapsed,
-                        extra={"error": str(ex)},
-                    )
+                    AttackResult(bits, n, False, None, None, elapsed, {"error": str(ex)})
                 )
                 continue
 
@@ -162,57 +138,116 @@ class RSABenchmark:
 
             # trata saída
             if isinstance(out, tuple):
-                if len(out) >= 2:
-                    p, q = out[0], out[1]
-                    if len(out) > 2:
-                        extra["rest"] = out[2:]
+                p, q = out[0], out[1]
+                if len(out) > 2:
+                    third = out[2]
+                    # se o terceiro elemento for um dict, joga direto em extra
+                    if isinstance(third, dict):
+                        extra.update(third)
+                    else:
+                        extra["rest"] = third
             elif isinstance(out, dict):
                 p = out.get("p")
                 q = out.get("q")
                 extra = {k: v for k, v in out.items() if k not in ("p", "q")}
-            else:
-                extra["error"] = "Saída inválida do ataque (use tuple ou dict)"
 
-            success = p is not None and q is not None and (p * q == n)
+            success = p is not None and q is not None and p * q == n
+
+            if success:
+                print(f"✔ Sucesso! Fatores encontrados:")
+                print(f"   p = {p}")
+                print(f"   q = {q}")
+            else:
+                print("❌ Falha: ataque não encontrou p e q.")
+
+            print(f"⏱ Tempo total: {elapsed:.6f} segundos")
+            print(f"📊 Extra: {extra}")
+            print()
 
             results.append(
-                AttackResult(
-                    key_bits=bits,
-                    n=n,
-                    success=success,
-                    p=p if success else None,
-                    q=q if success else None,
-                    elapsed_seconds=elapsed,
-                    extra=extra,
-                )
+                AttackResult(bits, n, success, p if success else None, q if success else None, elapsed, extra)
             )
 
+        print("\n🏁 Fim dos ataques!\n")
         return results
 
 
 # ===========================================
-# Exemplo de função de ataque: trial division
+#  ATAQUE COM LOG DE PROGRESSO
 # ===========================================
 
-def trial_division_attack(n: int, e: int, limit_factor: float = 1.0):
-    """
-    Exemplo simples: tenta dividir n por todos os inteiros até sqrt(n)*limit_factor.
-
-    Retorna (p, q, steps) para mostrar exemplo de extras.
-    """
-    limit = int(math.isqrt(n) * limit_factor)
+def trial_division_attack(n: int, e: int, progress_interval: int = 1000):
+    limit = math.isqrt(n)
     steps = 0
+
     for d in range(2, limit + 1):
         steps += 1
+
+        # Log periódico
+        if steps % progress_interval == 0:
+            percent = (d / limit) * 100
+            print(f"   [Progresso] {percent:.1f}% ({d}/{limit}) testados...")
+
         if n % d == 0:
-            p = d
-            q = n // d
-            return (p, q, {"steps": steps})
+            return (d, n // d, {"steps": steps})
+
     return (None, None, {"steps": steps})
 
 
+# ----------------------------
+# Função de relatório final
+# ----------------------------
+
+def print_final_report(results: List[AttackResult]):
+    print("\n================ RELATÓRIO FINAL ================\n")
+
+    total = len(results)
+    success_count = sum(1 for r in results if r.success)
+    fail_count = total - success_count
+    success_rate = (success_count / total * 100) if total > 0 else 0.0
+
+    print(f"Total de chaves testadas : {total}")
+    print(f"Quebradas com sucesso    : {success_count}")
+    print(f"Falharam                 : {fail_count}")
+    print(f"Taxa de sucesso          : {success_rate:.2f}%\n")
+
+    # Agrupar por tamanho de chave
+    stats: Dict[int, List[AttackResult]] = {}
+    for r in results:
+        stats.setdefault(r.key_bits, []).append(r)
+
+    print("Resumo por tamanho de chave:\n")
+    print(f"{'Bits':4} {'#Total':6} {'#OK':4} {'Sucesso%':9} {'t_med (s)':10} {'steps_med':10}")
+    print("-" * 60)
+
+    for bits, group in sorted(stats.items()):
+        total_b = len(group)
+        ok_b = sum(1 for r in group if r.success)
+        rate_b = (ok_b / total_b * 100) if total_b > 0 else 0.0
+        avg_time = sum(r.elapsed_seconds for r in group) / total_b if total_b > 0 else 0.0
+
+        # média de steps se disponível
+        steps_list = []
+        for r in group:
+            steps = r.extra.get("steps")
+            if isinstance(steps, (int, float)):
+                steps_list.append(steps)
+        avg_steps = sum(steps_list) / len(steps_list) if steps_list else 0.0
+
+        print(
+            f"{bits:4} "
+            f"{total_b:6} "
+            f"{ok_b:4} "
+            f"{rate_b:9.2f} "
+            f"{avg_time:10.6f} "
+            f"{avg_steps:10.2f}"
+        )
+
+    print("\n=================================================\n")
+
+
 # ============================
-# Exemplo de uso / "main"
+# Exemplo de uso
 # ============================
 if __name__ == "__main__":
     bench = RSABenchmark(
@@ -220,8 +255,9 @@ if __name__ == "__main__":
         seed=42,
     )
 
-    results = bench.run(trial_division_attack, limit_factor=1.0)
+    results = bench.run(trial_division_attack, progress_interval=500)
 
+    # tabela simples por chave (se quiser manter)
     print(f"{'Bits':4} {'Sucesso':8} {'Tempo (s)':10} Extra")
     print("-" * 60)
     for r in results:
@@ -231,3 +267,6 @@ if __name__ == "__main__":
             f"{r.elapsed_seconds:10.6f} "
             f"{r.extra}"
         )
+
+    # relatório final agregado
+    print_final_report(results)
