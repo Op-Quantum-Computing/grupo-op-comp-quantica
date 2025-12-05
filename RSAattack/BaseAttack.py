@@ -126,6 +126,26 @@ class RSABenchmark:
 
             try:
                 out = attack_func(n, e, **attack_kwargs)
+            except KeyboardInterrupt:
+                elapsed = time.perf_counter() - start
+                print("⏹ Execução interrompida pelo usuário (Ctrl+C) durante este ataque.\n")
+
+                # registra essa chave como interrompida
+                results.append(
+                    AttackResult(
+                        bits,
+                        n,
+                        False,
+                        None,
+                        None,
+                        elapsed,
+                        {"interrupted": True},
+                    )
+                )
+
+                print("⚠ Interrupção detectada. Gerando relatório parcial com os resultados até agora...\n")
+                break  # sai do loop de chaves e retorna resultados parciais
+
             except Exception as ex:
                 elapsed = time.perf_counter() - start
                 print(f"❌ ERRO no ataque: {ex}\n")
@@ -141,7 +161,6 @@ class RSABenchmark:
                 p, q = out[0], out[1]
                 if len(out) > 2:
                     third = out[2]
-                    # se o terceiro elemento for um dict, joga direto em extra
                     if isinstance(third, dict):
                         extra.update(third)
                     else:
@@ -154,7 +173,7 @@ class RSABenchmark:
             success = p is not None and q is not None and p * q == n
 
             if success:
-                print(f"✔ Sucesso! Fatores encontrados:")
+                print("✔ Sucesso! Fatores encontrados:")
                 print(f"   p = {p}")
                 print(f"   q = {q}")
             else:
@@ -168,7 +187,7 @@ class RSABenchmark:
                 AttackResult(bits, n, success, p if success else None, q if success else None, elapsed, extra)
             )
 
-        print("\n🏁 Fim dos ataques!\n")
+        print("\n🏁 Fim dos ataques (normal ou interrompido)!\n")
         return results
 
 
@@ -186,7 +205,7 @@ def trial_division_attack(n: int, e: int, progress_interval: int = 1000):
         # Log periódico
         if steps % progress_interval == 0:
             percent = (d / limit) * 100
-            print(f"   [Progresso] {percent:.1f}% ({d}/{limit}) testados...")
+            print(f"   [Progresso] {percent:.6f}% ({d}/{limit}) testados...")
 
         if n % d == 0:
             return (d, n // d, {"steps": steps})
@@ -206,10 +225,10 @@ def print_final_report(results: List[AttackResult]):
     fail_count = total - success_count
     success_rate = (success_count / total * 100) if total > 0 else 0.0
 
-    print(f"Total de chaves testadas : {total}")
-    print(f"Quebradas com sucesso    : {success_count}")
-    print(f"Falharam                 : {fail_count}")
-    print(f"Taxa de sucesso          : {success_rate:.2f}%\n")
+    print(f"Total de chaves testadas (inclui interrompidas): {total}")
+    print(f"Quebradas com sucesso                          : {success_count}")
+    print(f"Falharam / não quebradas                       : {fail_count}")
+    print(f"Taxa de sucesso                                : {success_rate:.2f}%\n")
 
     # Agrupar por tamanho de chave
     stats: Dict[int, List[AttackResult]] = {}
@@ -226,7 +245,6 @@ def print_final_report(results: List[AttackResult]):
         rate_b = (ok_b / total_b * 100) if total_b > 0 else 0.0
         avg_time = sum(r.elapsed_seconds for r in group) / total_b if total_b > 0 else 0.0
 
-        # média de steps se disponível
         steps_list = []
         for r in group:
             steps = r.extra.get("steps")
@@ -251,13 +269,12 @@ def print_final_report(results: List[AttackResult]):
 # ============================
 if __name__ == "__main__":
     bench = RSABenchmark(
-        key_sizes_bits=(16, 20, 24, 28, 32),
+        key_sizes_bits=(16, 20, 24, 28, 2048),
         seed=42,
     )
 
-    results = bench.run(trial_division_attack, progress_interval=500)
+    results = bench.run(trial_division_attack, progress_interval=10_000_000)
 
-    # tabela simples por chave (se quiser manter)
     print(f"{'Bits':4} {'Sucesso':8} {'Tempo (s)':10} Extra")
     print("-" * 60)
     for r in results:
@@ -268,5 +285,4 @@ if __name__ == "__main__":
             f"{r.extra}"
         )
 
-    # relatório final agregado
     print_final_report(results)
