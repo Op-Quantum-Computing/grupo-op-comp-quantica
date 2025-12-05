@@ -5,7 +5,7 @@ def pollard_p_minus_1_attack(
     n: int,
     e: int,
     a_start: int = 2,
-    max_iter: int = 100000,
+    max_iter: int = 1000000000,
     progress_interval: int = 1000,
 ):
     """
@@ -53,14 +53,14 @@ def pollard_p_minus_1_attack(
 
 if __name__ == "__main__":
     bench = RSABenchmark(
-        key_sizes_bits=(16, 20, 24, 28, 2048),
+        key_sizes_bits=(64, 128, 256, 512, 1024),
         seed=42,
     )
 
     results = bench.run(
         pollard_p_minus_1_attack,
         a_start=2,
-        max_iter=100000,
+        max_iter=1000000000,
         progress_interval=1000,
     )
 
