@@ -125,6 +125,11 @@ class RSABenchmark:
             extra: dict = {}
             p = q = None
 
+            # Resetar o timeout_flag se foi fornecido
+            if "timeout_flag" in attack_kwargs:
+                attack_kwargs["timeout_flag"].start_time = time.perf_counter()
+                attack_kwargs["timeout_flag"].timeout_flag = False
+
             try:
                 out = attack_func(n, e, **attack_kwargs)
             except KeyboardInterrupt:
