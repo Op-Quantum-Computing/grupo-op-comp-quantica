@@ -1,7 +1,8 @@
 import math
 from typing import Optional, Tuple
+from BaseAttack import RSABenchmark
 
-def fermat_factor(n: int, max_iters: Optional[int] = None) -> Optional[Tuple[int,int]]:
+def fermat_factor(n: int, e: int = 0, max_iters: Optional[int] = None) -> Optional[Tuple[int,int]]:
     
     if n <= 1:
         return None
@@ -35,3 +36,26 @@ def fermat_factor(n: int, max_iters: Optional[int] = None) -> Optional[Tuple[int
         it += 1
         if max_iters and it > max_iters:
             return None
+
+
+if __name__ == "__main__":
+    bench = RSABenchmark(
+        key_sizes_bits=(32, 64, 128, 256, 512, 1024, 2048),
+        seed=42,
+    )
+
+    results = bench.run(
+        fermat_factor,
+    )
+
+    print(f"{'Bits':4} {'Sucesso':8} {'Tempo (s)':10} Extra")
+    print("-" * 60)
+    for r in results:
+        print(
+            f"{r.key_bits:4} "
+            f"{str(r.success):8} "
+            f"{r.elapsed_seconds:10.6f} "
+            f"{r.extra}"
+        )
+
+    bench.print_final_report(results)
