@@ -5,13 +5,9 @@ def pollard_p_minus_1_attack(
     n: int,
     e: int,
     a_start: int = 2,
-    max_iter: int = 100000,
+    max_iter: int = 1000000000,
     progress_interval: int = 1000,
 ):
-    """
-    Ataque Pollard p-1 (versão simples, estilo GeeksforGeeks),
-    adaptado para a interface do RSABenchmark.
-    """
     a = a_start
     i = 2
     iters = 0
@@ -42,7 +38,6 @@ def pollard_p_minus_1_attack(
 
         i += 1
 
-    # se chegou aqui, não conseguiu fatorar com esses parâmetros
     return (None, None, {
         "iters": iters,
         "i_final": i - 1,
@@ -53,14 +48,14 @@ def pollard_p_minus_1_attack(
 
 if __name__ == "__main__":
     bench = RSABenchmark(
-        key_sizes_bits=(16, 20, 24, 28, 2048),
+        key_sizes_bits=(64, 128, 256, 512, 1024),
         seed=42,
     )
 
     results = bench.run(
         pollard_p_minus_1_attack,
         a_start=2,
-        max_iter=100000,
+        max_iter=1000000000,
         progress_interval=1000,
     )
 
