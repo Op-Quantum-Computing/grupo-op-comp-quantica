@@ -29,6 +29,15 @@ Make sure your editor is using the correct Python virtual environment, with the 
 
 Modify or add SQLModel models for data and SQL tables in `./backend/app/models.py`, API endpoints in `./backend/app/api/`, CRUD (Create, Read, Update, Delete) utils in `./backend/app/crud.py`.
 
+## Post-Quantum Cryptography APIs
+
+The backend now bundles [Open Quantum Safe](https://openquantumsafe.org) via the `oqs` Python bindings. Two helper endpoints are available out of the box:
+
+* `GET /api/v1/pqc/kems` enumerates every Key Encapsulation Mechanism that liboqs exposes in the current build together with their metadata (claimed NIST level, key sizes, etc.).
+* `POST /api/v1/pqc/kem/handshake` (body: `{"algorithm": "Kyber512"}` or omit for the default) performs a demo KEM handshake entirely server side and returns the Base64 encoded artifacts so that the frontend can visualize how client and server derive the same shared secret.
+
+These routes are self contained, so you can explore and plug PQC primitives into other workflows without having to manage liboqs directly in the frontend.
+
 ## VS Code
 
 There are already configurations in place to run the backend through the VS Code debugger, so that you can use breakpoints, pause and explore variables, etc.

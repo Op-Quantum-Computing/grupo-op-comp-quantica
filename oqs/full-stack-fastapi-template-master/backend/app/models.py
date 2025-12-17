@@ -111,3 +111,31 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class PQCKEMAlgorithm(SQLModel):
+    name: str
+    claimed_nist_level: int
+    is_classical_secured: bool
+    length_public_key: int
+    length_secret_key: int
+    length_ciphertext: int
+    length_shared_secret: int
+
+
+class PQCKEMAlgorithms(SQLModel):
+    data: list[PQCKEMAlgorithm]
+
+
+class PQCKEMHandshakeRequest(SQLModel):
+    algorithm: str | None = None
+
+
+class PQCKEMHandshakeResponse(SQLModel):
+    algorithm: str
+    public_key: str
+    ciphertext: str
+    server_shared_secret: str
+    client_shared_secret: str
+    shared_secret_match: bool
+    details: PQCKEMAlgorithm
