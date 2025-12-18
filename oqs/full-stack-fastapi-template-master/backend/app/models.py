@@ -111,3 +111,61 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class PQCKEMAlgorithm(SQLModel):
+    name: str
+    claimed_nist_level: int
+    is_classical_secured: bool
+    length_public_key: int
+    length_secret_key: int
+    length_ciphertext: int
+    length_shared_secret: int
+
+
+class PQCKEMAlgorithms(SQLModel):
+    data: list[PQCKEMAlgorithm]
+
+
+# Modelos para o handshake PQC em duas etapas
+class PQCHandshakeInitRequest(SQLModel):
+    """Requisição para iniciar handshake PQC."""
+    algorithm: str | None = None
+
+
+class PQCHandshakeInitResponse(SQLModel):
+    """Resposta da primeira etapa: servidor gera chaves e retorna chave pública."""
+    handshake_id: str
+    algorithm: str
+    public_key: str  # Base64 encoded
+    expires_at: str  # ISO format timestamp
+
+
+class PQCHandshakeCompleteRequest(SQLModel):
+    """Cliente envia o ciphertext após encapsular o segredo."""
+    handshake_id: str
+    ciphertext: str  # Base64 encoded
+
+
+class PQCHandshakeCompleteResponse(SQLModel):
+    """Sessão PQC criada com sucesso."""
+    session_id: str
+    expires_at: str  # ISO format timestamp
+    message: str
+
+
+# Modelo de demonstração (apenas para testes/debug - NÃO usar em produção)
+class PQCKEMHandshakeRequest(SQLModel):
+    """Requisição de handshake completo (demo apenas)."""
+    algorithm: str | None = None
+
+
+class PQCKEMHandshakeResponse(SQLModel):
+    """Resposta do handshake completo (demo apenas) - mostra ambos os segredos."""
+    algorithm: str
+    public_key: str
+    ciphertext: str
+    server_shared_secret: str
+    client_shared_secret: str
+    shared_secret_match: bool
+    details: PQCKEMAlgorithm
