@@ -116,15 +116,14 @@ class PQCService:
     ) -> bytes:
         """
         Servidor: Decapsula o segredo usando a chave privada.
-        
+
         O shared_secret resultante será idêntico ao do cliente,
         provando que ambos completaram o handshake KEM.
         """
-        with oqs.KeyEncapsulation(algorithm) as kem:
-            # Restaura a chave privada no contexto KEM
-            kem_with_key = oqs.KeyEncapsulation(algorithm, secret_key)
-            shared_secret = kem_with_key.decap_secret(ciphertext)
-        
+        # Restaura a chave privada no contexto KEM e decapsula
+        with oqs.KeyEncapsulation(algorithm, secret_key) as kem:
+            shared_secret = kem.decap_secret(ciphertext)
+
         return shared_secret
 
     def generate_kem_handshake(self, algorithm: str) -> KEMHandshake:
